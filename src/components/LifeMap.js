@@ -71,7 +71,7 @@ const LifeMap = () => {
     const parentCategory = categories.find(c => c.id === parentId);
     const nodeColor = parentCategory ? parentCategory.color : parent.color;
     
-    // Calculate position - slightly random offset from parent
+    // Calculate position – random offset from parent
     const angle = Math.random() * 2 * Math.PI;
     const distance = 100;
     const newNode = {
@@ -97,7 +97,6 @@ const LifeMap = () => {
 
   const startConnection = (nodeId) => {
     if (selectedNode && selectedNode !== nodeId) {
-      // Create connection between selected node and this node
       const startNode = nodes.find(n => n.id === selectedNode);
       const endNode = nodes.find(n => n.id === nodeId);
       
@@ -162,25 +161,34 @@ const LifeMap = () => {
     setNodes(updatedNodes);
   };
 
+  // Extract clientX/clientY whether from mouse or touch events
+  const getClientCoordinates = (e) => {
+    if (e.touches) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
+
   const handleDragStart = (e, nodeId) => {
     e.stopPropagation();
+    const { clientX, clientY } = getClientCoordinates(e);
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     
     const svgRect = svgRef.current.getBoundingClientRect();
     setDraggedNode(nodeId);
     setDragOffset({
-      x: node.x - (e.clientX - svgRect.left) / zoomLevel + viewPosition.x,
-      y: node.y - (e.clientY - svgRect.top) / zoomLevel + viewPosition.y
+      x: node.x - (clientX - svgRect.left) / zoomLevel + viewPosition.x,
+      y: node.y - (clientY - svgRect.top) / zoomLevel + viewPosition.y
     });
   };
 
   const handleDragMove = (e) => {
     if (!draggedNode) return;
-    
+    const { clientX, clientY } = getClientCoordinates(e);
     const svgRect = svgRef.current.getBoundingClientRect();
-    const x = (e.clientX - svgRect.left) / zoomLevel - viewPosition.x + dragOffset.x;
-    const y = (e.clientY - svgRect.top) / zoomLevel - viewPosition.y + dragOffset.y;
+    const x = (clientX - svgRect.left) / zoomLevel - viewPosition.x + dragOffset.x;
+    const y = (clientY - svgRect.top) / zoomLevel - viewPosition.y + dragOffset.y;
     
     const updatedNodes = nodes.map(node => {
       if (node.id === draggedNode) {
@@ -198,29 +206,23 @@ const LifeMap = () => {
 
   const handleCanvasDragStart = (e) => {
     if (draggedNode) return;
-    
+    const { clientX, clientY } = getClientCoordinates(e);
     setIsDraggingCanvas(true);
-    setDragStart({
-      x: e.clientX,
-      y: e.clientY
-    });
+    setDragStart({ x: clientX, y: clientY });
   };
 
   const handleCanvasDragMove = (e) => {
     if (!isDraggingCanvas) return;
-    
-    const dx = (e.clientX - dragStart.x) / zoomLevel;
-    const dy = (e.clientY - dragStart.y) / zoomLevel;
+    const { clientX, clientY } = getClientCoordinates(e);
+    const dx = (clientX - dragStart.x) / zoomLevel;
+    const dy = (clientY - dragStart.y) / zoomLevel;
     
     setViewPosition({
       x: viewPosition.x - dx,
       y: viewPosition.y - dy
     });
     
-    setDragStart({
-      x: e.clientX,
-      y: e.clientY
-    });
+    setDragStart({ x: clientX, y: clientY });
   };
 
   const handleCanvasDragEnd = () => {
@@ -238,58 +240,24 @@ const LifeMap = () => {
     try {
       const data = { nodes, connections };
       const json = JSON.stringify(data);
+      // Save to localStorage for persistence
+      localStorage.setItem('lifeMapData', json);
       
-      // First approach: Using the File System Access API (modern browsers)
-      if (window.showSaveFilePicker) {
-        const saveFile = async () => {
-          try {
-            const handle = await window.showSaveFilePicker({
-              suggestedName: 'personal-mind-map.json',
-              types: [{
-                description: 'JSON Files',
-                accept: {'application/json': ['.json']},
-              }],
-            });
-            
-            const writable = await handle.createWritable();
-            await writable.write(json);
-            await writable.close();
-            showNotification('Mind map saved successfully!');
-          } catch (err) {
-            // User cancelled or error occurred
-            console.error('Error saving file:', err);
-            fallbackSave();
-          }
-        };
-        
-        saveFile();
-      } else {
-        // Fallback approach for browsers without File System Access API
-        fallbackSave();
-      }
+      // Create a downloadable file
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'personal-mind-map.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showNotification('Mind map saved!');
     } catch (err) {
-      console.error('Error preparing file:', err);
+      console.error('Error saving mind map:', err);
       showNotification('Error saving mind map');
-    }
-    
-    function fallbackSave() {
-      try {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'personal-mind-map.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        URL.revokeObjectURL(url);
-        showNotification('Mind map saved!');
-      } catch (err) {
-        console.error('Error in fallback save:', err);
-        showNotification('Error saving mind map');
-      }
     }
   };
 
@@ -315,6 +283,12 @@ const LifeMap = () => {
     reader.readAsText(file);
   };
 
+  // Auto-save changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
+  }, [nodes, connections]);
+
+  // Global mouse and touch event listeners for dragging
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (draggedNode) {
@@ -325,20 +299,33 @@ const LifeMap = () => {
     };
     
     const handleMouseUp = () => {
+      if (draggedNode) handleDragEnd();
+      if (isDraggingCanvas) handleCanvasDragEnd();
+    };
+
+    const handleTouchMove = (e) => {
       if (draggedNode) {
-        handleDragEnd();
-      }
-      if (isDraggingCanvas) {
-        handleCanvasDragEnd();
+        handleDragMove(e);
+      } else if (isDraggingCanvas) {
+        handleCanvasDragMove(e);
       }
     };
-    
+
+    const handleTouchEnd = () => {
+      if (draggedNode) handleDragEnd();
+      if (isDraggingCanvas) handleCanvasDragEnd();
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [draggedNode, isDraggingCanvas, dragStart, viewPosition, zoomLevel]);
 
@@ -355,7 +342,7 @@ const LifeMap = () => {
 
   return (
     <div className="mind-map-container">
-      {/* Static Stars Background */}
+      {/* Stars Background */}
       <div className="stars-background">
         {stars.map((star, i) => (
           <div 
@@ -374,7 +361,7 @@ const LifeMap = () => {
       
       {/* Top Bar */}
       <div className="top-bar">
-        <h1>Personal Mind Map</h1>
+        <h1>LifeMap</h1>
         <div className="button-group">
           <button 
             className={`btn ${connectMode ? 'btn-active' : ''}`}
@@ -406,8 +393,9 @@ const LifeMap = () => {
         className="canvas"
         onWheel={handleZoom}
         onMouseDown={handleCanvasDragStart}
+        onTouchStart={handleCanvasDragStart}
       >
-        {showNameInput ? (
+        {showNameInput && (
           <div className="name-input-overlay">
             <div className="name-input-box">
               <h2>Start Your Mind Map</h2>
@@ -425,20 +413,19 @@ const LifeMap = () => {
               </button>
             </div>
           </div>
-        ) : null}
+        )}
         
         <svg 
           ref={svgRef}
           className="mind-map-svg"
+          onTouchStart={(e) => e.preventDefault()}
         >
           <g transform={`scale(${zoomLevel}) translate(${-viewPosition.x}, ${-viewPosition.y})`}>
             {/* Connections */}
             {connections.map((connection, index) => {
               const fromNode = nodes.find(node => node.id === connection.from);
               const toNode = nodes.find(node => node.id === connection.to);
-              
               if (!fromNode || !toNode) return null;
-              
               return (
                 <line
                   key={`connection-${index}`}
@@ -456,7 +443,6 @@ const LifeMap = () => {
             {/* Nodes */}
             {nodes.map((node) => {
               const nodeSize = node.type === 'main' ? 80 : node.type === 'category' ? 60 : 50;
-              
               return (
                 <g 
                   key={node.id} 
@@ -465,8 +451,8 @@ const LifeMap = () => {
                   onClick={() => handleNodeClick(node.id)}
                   onDoubleClick={() => handleNodeDoubleClick(node)}
                   onMouseDown={(e) => handleDragStart(e, node.id)}
+                  onTouchStart={(e) => handleDragStart(e, node.id)}
                 >
-                  {/* Connection hooks (small circles around the main circle) */}
                   {selectedNode === node.id && (
                     <circle
                       r={nodeSize / 2 + 10}
@@ -478,7 +464,6 @@ const LifeMap = () => {
                     />
                   )}
                   
-                  {/* Main node circle */}
                   <circle
                     r={nodeSize / 2}
                     fill="rgba(0,0,0,0.5)"
@@ -556,12 +541,12 @@ const LifeMap = () => {
         </div>
       )}
       
-      {/* Mini Help */}
+      {/* Help Panel */}
       <div className="help-panel">
         <p>🖱️ <strong>Scroll</strong>: Zoom In/Out</p>
-        <p>✋ <strong>Drag</strong>: Move Canvas</p>
+        <p>✋ <strong>Drag</strong>: Move Canvas/Nodes</p>
         <p>🔄 <strong>Double-click</strong>: Edit Node</p>
-        <p>⚡ <strong>Click+Click</strong>: Connect Nodes</p>
+        <p>⚡ <strong>Tap+Tap</strong>: Connect Nodes</p>
       </div>
     </div>
   );
