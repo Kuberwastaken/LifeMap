@@ -416,7 +416,7 @@ const LifeMap = () => {
                 <div className="planet"></div>
                 <h2>Map Out your Life Digitally</h2>
               </div>
-              <p className="cosmic-subtitle">Keep it until the universe ends</p>
+              <p className="cosmic-subtitle">An Open-Source way to keep track of Life's Questions</p>
               
               <div className="input-field">
                 <input
