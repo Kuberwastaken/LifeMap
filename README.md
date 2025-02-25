@@ -6,9 +6,9 @@
 
 </div>
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/kuberwastaken/LifeMap?style=for-the-badge&labelColor=black&color=grey)
-![GitHub](https://img.shields.io/github/license/kuberwastaken/LifeMap?style=for-the-badge&labelColor=black&color=grey)
-![GitHub package.json version](https://img.shields.io/github/package-json/v/kuberwastaken/LifeMap?style=for-the-badge&labelColor=black&color=grey)
+<img src="https://img.shields.io/static/v1?label=Kuberwastaken&message=LifeMap&color=black&logo=github" alt="Kuberwastaken - TREAT">
+<img src="https://img.shields.io/badge/version-Beta-black" alt="Version 2.0">
+<img src="https://img.shields.io/badge/License-MIT-black" alt="License Apache 2.0">
 
 
 </div>
@@ -21,7 +21,7 @@ LifeMap is a web application that allows you to create and visualize your person
 
 <div align="center">
     <a href="https://kuberwastaken.github.io/LifeMap" target="_blank">
-        <img src="https://img.shields.io/badge/Make%20Your%20Own%20LifeMap-black?style=for-the-badge&logoColor=white" alt="Make Your Own LifeMap" width="200">
+        <img src="https://img.shields.io/badge/Make%20Your%20Own%20LifeMap-black?style=for-the-badge&logoColor=white" alt="Make Your Own LifeMap" width="300">
     </a>
 </div>
 
@@ -78,6 +78,7 @@ We welcome contributions from the community. Feel free to fork the repository, m
 ## Acknowledgements
 
 - I would like to thank Dr. Edward Rogers for his session on importance of a LifeMap like such in life, it was a huge inspiration behind this project.
+
 - Also, I would love to thank my undiagnosed ADHD for impulsively jumping on the idea as soon as the session ended.
 
 ## License

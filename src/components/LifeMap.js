@@ -17,6 +17,7 @@ const LifeMap = () => {
   const [viewPosition, setViewPosition] = useState({ x: 0, y: 0 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const starsRef = useRef(null);
 
   const categories = [
     { id: 'education', label: 'Education', color: '#4A90E2' },
@@ -25,6 +26,29 @@ const LifeMap = () => {
     { id: 'dreams', label: 'Dreams', color: '#E74C3C' },
     { id: 'family', label: 'Family', color: '#9B59B6' }
   ];
+
+  // Generate animated stars for the background
+  const generateStars = () => {
+    const starCount = 200;
+    const stars = [];
+    
+    for (let i = 0; i < starCount; i++) {
+      const size = Math.random() * 2 + 1;
+      stars.push({
+        id: `star-${i}`,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: size,
+        opacity: Math.random() * 0.7 + 0.3,
+        animationDuration: Math.random() * 15 + 10,
+        animationDelay: Math.random() * 10
+      });
+    }
+    
+    return stars;
+  };
+  
+  const [stars] = useState(generateStars());
 
   const addMainNode = (name) => {
     const centerX = svgRef.current.clientWidth / 2;
@@ -329,31 +353,21 @@ const LifeMap = () => {
     };
   }, [draggedNode, isDraggingCanvas, dragStart, viewPosition, zoomLevel]);
 
-  // Generate fixed stars for the background
-  const stars = [];
-  for (let i = 0; i < 100; i++) {
-    stars.push({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 2 + 1,
-      opacity: Math.random() * 0.5 + 0.5
-    });
-  }
-
   return (
     <div className="mind-map-container">
-      {/* Stars Background */}
-      <div className="stars-background">
-        {stars.map((star, i) => (
+      {/* Animated Stars Background */}
+      <div className="stars-background" ref={starsRef}>
+        {stars.map((star) => (
           <div 
-            key={i}
+            key={star.id}
             className="star"
             style={{
               left: `${star.x}%`,
               top: `${star.y}%`,
               width: `${star.size}px`,
               height: `${star.size}px`,
-              opacity: star.opacity
+              opacity: star.opacity,
+              animation: `twinkle ${star.animationDuration}s infinite ${star.animationDelay}s`
             }}
           ></div>
         ))}
@@ -398,18 +412,31 @@ const LifeMap = () => {
         {showNameInput && (
           <div className="name-input-overlay">
             <div className="name-input-box">
-              <h2>Start Your Mind Map</h2>
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-              />
+              <div className="space-title">
+                <div className="planet"></div>
+                <h2>Map Out your Life Digitally</h2>
+              </div>
+              <p className="cosmic-subtitle">Keep it until the universe ends</p>
+              
+              <div className="input-field">
+                <input
+                  type="text"
+                  placeholder="Enter your name, traveler"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                />
+              </div>
+              
               <button
-                className="btn btn-primary"
+                className="cosmic-button"
                 onClick={() => addMainNode(nameInput || 'Me')}
               >
-                Create Mind Map
+                <span className="button-text">Launch Mind Map</span>
+                <div className="button-stars">
+                  <div className="star-1"></div>
+                  <div className="star-2"></div>
+                  <div className="star-3"></div>
+                </div>
               </button>
             </div>
           </div>
@@ -469,6 +496,7 @@ const LifeMap = () => {
                     fill="rgba(0,0,0,0.5)"
                     stroke={node.color}
                     strokeWidth={selectedNode === node.id ? 3 : 1}
+                    className="node-circle"
                   />
                   
                   {node.editable ? (
@@ -548,6 +576,10 @@ const LifeMap = () => {
         <p>🔄 <strong>Double-click</strong>: Edit Node</p>
         <p>⚡ <strong>Tap+Tap</strong>: Connect Nodes</p>
       </div>
+
+      <footer className="footer">
+        Made with <span style={{ color: 'red' }}>❤</span> by Kuber Mehta
+      </footer>
     </div>
   );
 };
