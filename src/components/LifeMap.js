@@ -18,6 +18,9 @@ const LifeMap = () => {
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const starsRef = useRef(null);
+  // Track pinch gesture for mobile zoom
+  const [pinchStart, setPinchStart] = useState(0);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   const categories = [
     { id: 'education', label: 'Education', color: '#4A90E2' },
@@ -26,6 +29,21 @@ const LifeMap = () => {
     { id: 'dreams', label: 'Dreams', color: '#E74C3C' },
     { id: 'family', label: 'Family', color: '#9B59B6' }
   ];
+
+  // Check if device is mobile on component mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      setIsMobileDevice(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase()));
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Generate animated stars for the background
   const generateStars = () => {
@@ -50,9 +68,27 @@ const LifeMap = () => {
   
   const [stars] = useState(generateStars());
 
+  // Check for saved data on component mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('lifeMapData');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        if (parsedData.nodes && parsedData.nodes.length > 0 && 
+            parsedData.connections && parsedData.connections.length > 0) {
+          setNodes(parsedData.nodes);
+          setConnections(parsedData.connections);
+          setShowNameInput(false);
+        }
+      } catch (error) {
+        console.error('Error loading saved data:', error);
+      }
+    }
+  }, []);
+
   const addMainNode = (name) => {
-    const centerX = svgRef.current.clientWidth / 2;
-    const centerY = svgRef.current.clientHeight / 2;
+    const centerX = svgRef.current ? svgRef.current.clientWidth / 2 : window.innerWidth / 2;
+    const centerY = svgRef.current ? svgRef.current.clientHeight / 2 : window.innerHeight / 2;
     
     const mainNode = {
       id: 'main',
@@ -153,7 +189,10 @@ const LifeMap = () => {
     setTimeout(() => setShowTooltip(false), 2000);
   };
 
-  const handleNodeClick = (nodeId) => {
+  const handleNodeClick = (nodeId, e) => {
+    // Prevent event from propagating to the canvas
+    if (e) e.stopPropagation();
+    
     if (connectMode) {
       if (selectedNode && selectedNode !== nodeId) {
         startConnection(nodeId);
@@ -165,7 +204,8 @@ const LifeMap = () => {
     }
   };
 
-  const handleNodeDoubleClick = (node) => {
+  const handleNodeDoubleClick = (node, e) => {
+    if (e) e.stopPropagation();
     const updatedNodes = nodes.map(n => {
       if (n.id === node.id) {
         return { ...n, editable: true };
@@ -253,11 +293,56 @@ const LifeMap = () => {
     setIsDraggingCanvas(false);
   };
 
+  // Enhanced zoom function that works with mouse wheel and touch pinch
   const handleZoom = (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
     const newZoom = Math.max(0.5, Math.min(2, zoomLevel + delta));
     setZoomLevel(newZoom);
+  };
+
+  // Handle touch pinch start
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      // Calculate distance between two fingers
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setPinchStart(distance);
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      handleCanvasDragStart(e);
+    }
+  };
+
+  // Handle touch move for pinch zoom
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      // Calculate current distance
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      
+      if (pinchStart > 0) {
+        // Calculate zoom change
+        const delta = (distance - pinchStart) * 0.01;
+        const newZoom = Math.max(0.5, Math.min(2, zoomLevel + delta));
+        setZoomLevel(newZoom);
+        setPinchStart(distance);
+      }
+    } else if (e.touches.length === 1 && isDraggingCanvas) {
+      handleCanvasDragMove(e);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    setPinchStart(0);
+    if (isDraggingCanvas) {
+      handleCanvasDragEnd();
+    }
   };
 
   const saveLifeMap = () => {
@@ -307,9 +392,39 @@ const LifeMap = () => {
     reader.readAsText(file);
   };
 
+  // Clear canvas and start over
+  const clearLifeMap = () => {
+    if (window.confirm('Are you sure you want to clear the mind map and start over?')) {
+      setNodes([]);
+      setConnections([]);
+      setSelectedNode(null);
+      setShowNameInput(true);
+      localStorage.removeItem('lifeMapData');
+      showNotification('Mind map cleared!');
+    }
+  };
+
+  // Zoom controls for mobile
+  const zoomIn = () => {
+    const newZoom = Math.min(2, zoomLevel + 0.1);
+    setZoomLevel(newZoom);
+  };
+
+  const zoomOut = () => {
+    const newZoom = Math.max(0.5, zoomLevel - 0.1);
+    setZoomLevel(newZoom);
+  };
+
+  const resetZoom = () => {
+    setZoomLevel(1);
+    setViewPosition({ x: 0, y: 0 });
+  };
+
   // Auto-save changes to localStorage
   useEffect(() => {
-    localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
+    if (nodes.length > 0) {
+      localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
+    }
   }, [nodes, connections]);
 
   // Global mouse and touch event listeners for dragging
@@ -327,29 +442,12 @@ const LifeMap = () => {
       if (isDraggingCanvas) handleCanvasDragEnd();
     };
 
-    const handleTouchMove = (e) => {
-      if (draggedNode) {
-        handleDragMove(e);
-      } else if (isDraggingCanvas) {
-        handleCanvasDragMove(e);
-      }
-    };
-
-    const handleTouchEnd = () => {
-      if (draggedNode) handleDragEnd();
-      if (isDraggingCanvas) handleCanvasDragEnd();
-    };
-
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [draggedNode, isDraggingCanvas, dragStart, viewPosition, zoomLevel]);
 
@@ -399,6 +497,15 @@ const LifeMap = () => {
               onChange={loadLifeMap}
             />
           </label>
+
+          {!showNameInput && (
+            <button 
+              className="btn btn-danger"
+              onClick={clearLifeMap}
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
       
@@ -407,7 +514,9 @@ const LifeMap = () => {
         className="canvas"
         onWheel={handleZoom}
         onMouseDown={handleCanvasDragStart}
-        onTouchStart={handleCanvasDragStart}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {showNameInput && (
           <div className="name-input-overlay">
@@ -424,6 +533,11 @@ const LifeMap = () => {
                   placeholder="Enter your name, traveler"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      addMainNode(nameInput || 'Me');
+                    }
+                  }}
                 />
               </div>
               
@@ -445,7 +559,6 @@ const LifeMap = () => {
         <svg 
           ref={svgRef}
           className="mind-map-svg"
-          onTouchStart={(e) => e.preventDefault()}
         >
           <g transform={`scale(${zoomLevel}) translate(${-viewPosition.x}, ${-viewPosition.y})`}>
             {/* Connections */}
@@ -475,8 +588,8 @@ const LifeMap = () => {
                   key={node.id} 
                   transform={`translate(${node.x}, ${node.y})`}
                   className="node"
-                  onClick={() => handleNodeClick(node.id)}
-                  onDoubleClick={() => handleNodeDoubleClick(node)}
+                  onClick={(e) => handleNodeClick(node.id, e)}
+                  onDoubleClick={(e) => handleNodeDoubleClick(node, e)}
                   onMouseDown={(e) => handleDragStart(e, node.id)}
                   onTouchStart={(e) => handleDragStart(e, node.id)}
                 >
@@ -537,11 +650,20 @@ const LifeMap = () => {
             })}
           </g>
         </svg>
+        
+        {/* Mobile zoom controls */}
+        {isMobileDevice && (
+          <div className="mobile-controls">
+            <button onClick={zoomIn} className="zoom-btn">+</button>
+            <button onClick={resetZoom} className="zoom-btn">↻</button>
+            <button onClick={zoomOut} className="zoom-btn">-</button>
+          </div>
+        )}
       </div>
       
-      {/* Action Panel */}
+      {/* Action Panel - Fixed for Mobile */}
       {selectedNode && (
-        <div className="action-panel">
+        <div className="action-panel mobile-friendly-panel">
           <h3>
             {nodes.find(n => n.id === selectedNode)?.label || 'Selected Node'}
           </h3>
@@ -570,11 +692,22 @@ const LifeMap = () => {
       )}
       
       {/* Help Panel */}
-      <div className="help-panel">
-        <p>🖱️ <strong>Scroll</strong>: Zoom In/Out</p>
-        <p>✋ <strong>Drag</strong>: Move Canvas/Nodes</p>
-        <p>🔄 <strong>Double-click</strong>: Edit Node</p>
-        <p>⚡ <strong>Tap+Tap</strong>: Connect Nodes</p>
+      <div className="help-panel mobile-friendly-panel">
+        {isMobileDevice ? (
+          <>
+            <p>👆 <strong>Tap</strong>: Select Node</p>
+            <p>✌️ <strong>Pinch</strong>: Zoom In/Out</p>
+            <p>👆👆 <strong>Double Tap</strong>: Edit Node</p>
+            <p>✋ <strong>Drag</strong>: Move Canvas/Nodes</p>
+          </>
+        ) : (
+          <>
+            <p>🖱️ <strong>Scroll</strong>: Zoom In/Out</p>
+            <p>✋ <strong>Drag</strong>: Move Canvas/Nodes</p>
+            <p>🔄 <strong>Double-click</strong>: Edit Node</p>
+            <p>⚡ <strong>Tap+Tap</strong>: Connect Nodes</p>
+          </>
+        )}
       </div>
 
       <footer className="footer">
