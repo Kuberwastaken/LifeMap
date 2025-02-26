@@ -115,8 +115,13 @@ body {
 .btn-file {
   position: relative;
   overflow: hidden;
+  display: flex;          /* Add flex display */
+  justify-content: center; /* Center horizontally */
+  align-items: center;    /* Center vertically */
+  padding: 0.5rem 1rem;   /* Ensure consistent padding */
 }
 
+/* Ensure the file input doesn't interfere with text centering */
 .btn-file input[type=file] {
   position: absolute;
   top: 0;
@@ -129,6 +134,24 @@ body {
   outline: none;
   cursor: inherit;
   display: block;
+  width: 100%;           /* Ensure full width */
+  height: 100%;          /* Ensure full height */
+}
+
+/* Ensure base btn class supports centering */
+.btn {
+  padding: 0.5rem 1rem;
+  background-color: rgba(30, 40, 80, 0.7);
+  color: white;
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+  box-shadow: 0 0 10px rgba(0, 100, 255, 0.2);
+  display: flex;          /* Add flex display */
+  justify-content: center; /* Center horizontally */
+  align-items: center;    /* Center vertically */
 }
 
 /* Canvas */
