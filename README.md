@@ -7,7 +7,7 @@
 </div>
 
 <img src="https://img.shields.io/static/v1?label=Kuberwastaken&message=LifeMap&color=black&logo=github" alt="Kuberwastaken - TREAT">
-<img src="https://img.shields.io/badge/version-Beta-black" alt="Version 2.0">
+<img src="https://img.shields.io/badge/version-Beta-black" alt="Version 1.1.2">
 <img src="https://img.shields.io/badge/License-MIT-black" alt="License Apache 2.0">
 
 
