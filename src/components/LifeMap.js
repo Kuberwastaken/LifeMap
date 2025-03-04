@@ -225,6 +225,24 @@ const LifeMap = () => {
     setNodes(updatedNodes);
   };
 
+  // New method to delete a node
+  const deleteNode = () => {
+    if (!selectedNode) return;
+
+    // Remove the selected node
+    const updatedNodes = nodes.filter(node => node.id !== selectedNode);
+
+    // Remove all connections involving the selected node
+    const updatedConnections = connections.filter(
+      conn => conn.from !== selectedNode && conn.to !== selectedNode
+    );
+
+    setNodes(updatedNodes);
+    setConnections(updatedConnections);
+    setSelectedNode(null);
+    showNotification('Node deleted!');
+  };
+
   // Extract clientX/clientY whether from mouse or touch events
   const getClientCoordinates = (e) => {
     if (e.touches) {
@@ -679,6 +697,12 @@ const LifeMap = () => {
               onClick={() => handleNodeDoubleClick(nodes.find(n => n.id === selectedNode))}
             >
               Edit
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={deleteNode}
+            >
+              Delete
             </button>
           </div>
         </div>
