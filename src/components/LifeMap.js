@@ -545,7 +545,7 @@ const LifeMap = () => {
                 className="cosmic-button"
                 onClick={() => addMainNode(nameInput || 'Me')}
               >
-                <span className="button-text">Launch Mind Map</span>
+                <span className="button-text">Launch Concept Map</span>
                 <div className="button-stars">
                   <div className="star-1"></div>
                   <div className="star-2"></div>
