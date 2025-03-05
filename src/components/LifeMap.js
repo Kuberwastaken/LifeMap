@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase/config';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import '../styles/LifeMap.css';
 
 const LifeMap = () => {
@@ -21,6 +24,9 @@ const LifeMap = () => {
   // Track pinch gesture for mobile zoom
   const [pinchStart, setPinchStart] = useState(0);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  // Authentication context
+  const { user, login, logout } = useAuth();
 
   const categories = [
     { id: 'education', label: 'Education', color: '#4A90E2' },
@@ -363,51 +369,81 @@ const LifeMap = () => {
     }
   };
 
-  const saveLifeMap = () => {
+  // Modify saveLifeMap to save to Firestore if logged in
+  const saveLifeMap = async () => {
     try {
       const data = { nodes, connections };
-      const json = JSON.stringify(data);
-      // Save to localStorage for persistence
-      localStorage.setItem('lifeMapData', json);
       
-      // Create a downloadable file
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'personal-mind-map.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      showNotification('Mind map saved!');
+      if (user) {
+        // Save to Firestore
+        await setDoc(doc(db, 'lifemaps', user.uid), data);
+        showNotification('Mind map saved to cloud!');
+      } else {
+        // Fallback to localStorage
+        localStorage.setItem('lifeMapData', JSON.stringify(data));
+        
+        // Create a downloadable file
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'personal-mind-map.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('Mind map saved locally!');
+      }
     } catch (err) {
       console.error('Error saving mind map:', err);
       showNotification('Error saving mind map');
     }
   };
 
-  const loadLifeMap = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.nodes && data.connections) {
+  // Modify loadLifeMap to load from Firestore if logged in
+  const loadLifeMap = async (e) => {
+    try {
+      if (user) {
+        // Try to load from Firestore
+        const docRef = doc(db, 'lifemaps', user.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
           setNodes(data.nodes);
           setConnections(data.connections);
           setShowNameInput(false);
-          showNotification('Mind map loaded!');
+          showNotification('Mind map loaded from cloud!');
+        } else {
+          showNotification('No cloud mind map found');
         }
-      } catch (error) {
-        console.error('Error loading mind map:', error);
-        showNotification('Error loading file!');
+      } else {
+        // Fallback to file upload
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.nodes && data.connections) {
+              setNodes(data.nodes);
+              setConnections(data.connections);
+              setShowNameInput(false);
+              showNotification('Mind map loaded!');
+            }
+          } catch (error) {
+            console.error('Error loading mind map:', error);
+            showNotification('Error loading file!');
+          }
+        };
+        reader.readAsText(file);
       }
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      console.error('Error loading mind map:', error);
+      showNotification('Error loading mind map');
+    }
   };
 
   // Clear canvas and start over
@@ -469,6 +505,72 @@ const LifeMap = () => {
     };
   }, [draggedNode, isDraggingCanvas, dragStart, viewPosition, zoomLevel]);
 
+  // Modify the top bar to include login/logout button
+  const renderTopBar = () => (
+    <div className="top-bar">
+      <h1>LifeMap</h1>
+      <div className="button-group">
+        {/* Existing buttons */}
+        <button 
+          className={`btn ${connectMode ? 'btn-active' : ''}`}
+          onClick={() => setConnectMode(!connectMode)}
+        >
+          {connectMode ? 'Cancel Connect' : 'Connect Mode'}
+        </button>
+        
+        <button 
+          className="btn"
+          onClick={saveLifeMap}
+        >
+          Save
+        </button>
+        
+        <label className="btn btn-file">
+          Load
+          <input 
+            type="file" 
+            accept=".json" 
+            onChange={loadLifeMap}
+          />
+        </label>
+
+        {!showNameInput && (
+          <button 
+            className="btn btn-danger"
+            onClick={clearLifeMap}
+          >
+            Reset
+          </button>
+        )}
+
+        {/* Login/Logout Button */}
+        {user ? (
+          <div className="user-profile">
+            <img 
+              src={user.photoURL} 
+              alt="Profile" 
+              className="profile-pic"
+            />
+            <button 
+              className="btn btn-logout"
+              onClick={logout}
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <button 
+            className="btn btn-google-login"
+            onClick={login}
+          >
+            <span className="google-icon">G</span>
+            Sign in with Google
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="mind-map-container">
       {/* Animated Stars Background */}
@@ -489,43 +591,8 @@ const LifeMap = () => {
         ))}
       </div>
       
-      {/* Top Bar */}
-      <div className="top-bar">
-        <h1>LifeMap</h1>
-        <div className="button-group">
-          <button 
-            className={`btn ${connectMode ? 'btn-active' : ''}`}
-            onClick={() => setConnectMode(!connectMode)}
-          >
-            {connectMode ? 'Cancel Connect' : 'Connect Mode'}
-          </button>
-          
-          <button 
-            className="btn"
-            onClick={saveLifeMap}
-          >
-            Save
-          </button>
-          
-          <label className="btn btn-file">
-            Load
-            <input 
-              type="file" 
-              accept=".json" 
-              onChange={loadLifeMap}
-            />
-          </label>
-
-          {!showNameInput && (
-            <button 
-              className="btn btn-danger"
-              onClick={clearLifeMap}
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Replace existing top bar with new renderTopBar method */}
+      {renderTopBar()}
       
       {/* Main Canvas */}
       <div 
