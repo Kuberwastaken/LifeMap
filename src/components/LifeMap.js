@@ -21,11 +21,9 @@ const LifeMap = () => {
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const starsRef = useRef(null);
-  // Track pinch gesture for mobile zoom
   const [pinchStart, setPinchStart] = useState(0);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
-  // Authentication context
   const { user, login, logout } = useAuth();
 
   const categories = [
@@ -36,7 +34,6 @@ const LifeMap = () => {
     { id: 'family', label: 'Family', color: '#9B59B6' }
   ];
 
-  // Check if device is mobile on component mount
   useEffect(() => {
     const checkMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -51,7 +48,6 @@ const LifeMap = () => {
     };
   }, []);
 
-  // Generate animated stars for the background
   const generateStars = () => {
     const starCount = 200;
     const stars = [];
@@ -74,23 +70,73 @@ const LifeMap = () => {
   
   const [stars] = useState(generateStars());
 
-  // Check for saved data on component mount
   useEffect(() => {
-    const savedData = localStorage.getItem('lifeMapData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (parsedData.nodes && parsedData.nodes.length > 0 && 
-            parsedData.connections && parsedData.connections.length > 0) {
-          setNodes(parsedData.nodes);
-          setConnections(parsedData.connections);
-          setShowNameInput(false);
+    const loadData = async () => {
+      setNodes([]);
+      setConnections([]);
+      setShowNameInput(true);
+
+      if (user) {
+        console.log('Loading data for UID:', user.uid);
+        try {
+          const docRef = doc(db, 'lifemaps', user.uid);
+          const docSnap = await getDoc(docRef);
+          console.log('Firestore getDoc response:', docSnap.exists() ? docSnap.data() : 'No document');
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.nodes && data.connections) {
+              setNodes(data.nodes);
+              setConnections(data.connections);
+              setShowNameInput(false);
+              showNotification('Loaded your LifeMap from cloud!');
+            } else {
+              console.log('Document exists but has invalid data:', data);
+              setShowNameInput(true);
+            }
+          } else {
+            console.log('No Firestore document found');
+            setShowNameInput(true);
+          }
+        } catch (error) {
+          console.error('Firestore load error:', error.message, error.code);
+          showNotification('Load failed: ' + error.message);
+          // Fallback to localStorage
+          const savedData = localStorage.getItem('lifeMapData');
+          if (savedData) {
+            try {
+              const parsedData = JSON.parse(savedData);
+              if (parsedData.nodes?.length > 0 && parsedData.connections?.length > 0) {
+                setNodes(parsedData.nodes);
+                setConnections(parsedData.connections);
+                setShowNameInput(false);
+                showNotification('Loaded from local storage');
+              }
+            } catch (localError) {
+              console.error('LocalStorage error:', localError);
+            }
+          }
         }
-      } catch (error) {
-        console.error('Error loading saved data:', error);
+      } else {
+        console.log('No user, using localStorage');
+        const savedData = localStorage.getItem('lifeMapData');
+        if (savedData) {
+          try {
+            const parsedData = JSON.parse(savedData);
+            if (parsedData.nodes?.length > 0 && parsedData.connections?.length > 0) {
+              setNodes(parsedData.nodes);
+              setConnections(parsedData.connections);
+              setShowNameInput(false);
+            }
+          } catch (error) {
+            console.error('LocalStorage error:', error);
+          }
+        }
       }
-    }
-  }, []);
+    };
+
+    loadData();
+  }, [user]);
 
   const addMainNode = (name) => {
     const centerX = svgRef.current ? svgRef.current.clientWidth / 2 : window.innerWidth / 2;
@@ -137,7 +183,6 @@ const LifeMap = () => {
     const parentCategory = categories.find(c => c.id === parentId);
     const nodeColor = parentCategory ? parentCategory.color : parent.color;
     
-    // Calculate position – random offset from parent
     const angle = Math.random() * 2 * Math.PI;
     const distance = 100;
     const newNode = {
@@ -173,7 +218,6 @@ const LifeMap = () => {
           color: startNode.color
         };
         
-        // Check if connection already exists
         const connectionExists = connections.some(
           conn => (conn.from === selectedNode && conn.to === nodeId) || 
                  (conn.from === nodeId && conn.to === selectedNode)
@@ -196,7 +240,6 @@ const LifeMap = () => {
   };
 
   const handleNodeClick = (nodeId, e) => {
-    // Prevent event from propagating to the canvas
     if (e) e.stopPropagation();
     
     if (connectMode) {
@@ -231,14 +274,10 @@ const LifeMap = () => {
     setNodes(updatedNodes);
   };
 
-  // New method to delete a node
   const deleteNode = () => {
     if (!selectedNode) return;
 
-    // Remove the selected node
     const updatedNodes = nodes.filter(node => node.id !== selectedNode);
-
-    // Remove all connections involving the selected node
     const updatedConnections = connections.filter(
       conn => conn.from !== selectedNode && conn.to !== selectedNode
     );
@@ -249,7 +288,6 @@ const LifeMap = () => {
     showNotification('Node deleted!');
   };
 
-  // Extract clientX/clientY whether from mouse or touch events
   const getClientCoordinates = (e) => {
     if (e.touches) {
       return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
@@ -317,7 +355,6 @@ const LifeMap = () => {
     setIsDraggingCanvas(false);
   };
 
-  // Enhanced zoom function that works with mouse wheel and touch pinch
   const handleZoom = (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -325,10 +362,8 @@ const LifeMap = () => {
     setZoomLevel(newZoom);
   };
 
-  // Handle touch pinch start
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
-      // Calculate distance between two fingers
       const distance = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -340,18 +375,15 @@ const LifeMap = () => {
     }
   };
 
-  // Handle touch move for pinch zoom
   const handleTouchMove = (e) => {
     if (e.touches.length === 2) {
       e.preventDefault();
-      // Calculate current distance
       const distance = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
       
       if (pinchStart > 0) {
-        // Calculate zoom change
         const delta = (distance - pinchStart) * 0.01;
         const newZoom = Math.max(0.5, Math.min(2, zoomLevel + delta));
         setZoomLevel(newZoom);
@@ -369,48 +401,51 @@ const LifeMap = () => {
     }
   };
 
-  // Modify saveLifeMap to save to Firestore if logged in
   const saveLifeMap = async () => {
+    console.log('Save button clicked');
     try {
       const data = { nodes, connections };
+      console.log('Saving data:', data);
+      console.log('User:', user ? `UID: ${user.uid}` : 'Not logged in');
+
+      localStorage.setItem('lifeMapData', JSON.stringify(data));
       
       if (user) {
-        // Save to Firestore
-        await setDoc(doc(db, 'lifemaps', user.uid), data);
+        console.log('Attempting Firestore save for UID:', user.uid);
+        const docRef = doc(db, 'lifemaps', user.uid);
+        await setDoc(docRef, data);
+        console.log('Firestore save successful');
         showNotification('Mind map saved to cloud!');
       } else {
-        // Fallback to localStorage
-        localStorage.setItem('lifeMapData', JSON.stringify(data));
-        
-        // Create a downloadable file
-        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'personal-mind-map.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
+        console.log('No user, saved to localStorage only');
         showNotification('Mind map saved locally!');
       }
+      
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'lifemap.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Error saving mind map:', err);
-      showNotification('Error saving mind map');
+      console.error('Firestore save error:', err.message, err.code);
+      showNotification('Save failed: ' + err.message);
     }
   };
 
-  // Modify loadLifeMap to load from Firestore if logged in
   const loadLifeMap = async (e) => {
     try {
       if (user) {
-        // Try to load from Firestore
+        console.log('Manual load from Firestore for UID:', user.uid);
         const docRef = doc(db, 'lifemaps', user.uid);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+          console.log('Manual load data:', data);
           setNodes(data.nodes);
           setConnections(data.connections);
           setShowNameInput(false);
@@ -419,7 +454,6 @@ const LifeMap = () => {
           showNotification('No cloud mind map found');
         }
       } else {
-        // Fallback to file upload
         const file = e.target.files[0];
         if (!file) return;
         
@@ -446,7 +480,6 @@ const LifeMap = () => {
     }
   };
 
-  // Clear canvas and start over
   const clearLifeMap = () => {
     if (window.confirm('Are you sure you want to clear the mind map and start over?')) {
       setNodes([]);
@@ -458,7 +491,6 @@ const LifeMap = () => {
     }
   };
 
-  // Zoom controls for mobile
   const zoomIn = () => {
     const newZoom = Math.min(2, zoomLevel + 0.1);
     setZoomLevel(newZoom);
@@ -474,14 +506,12 @@ const LifeMap = () => {
     setViewPosition({ x: 0, y: 0 });
   };
 
-  // Auto-save changes to localStorage
   useEffect(() => {
     if (nodes.length > 0) {
       localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
     }
   }, [nodes, connections]);
 
-  // Global mouse and touch event listeners for dragging
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (draggedNode) {
@@ -505,12 +535,10 @@ const LifeMap = () => {
     };
   }, [draggedNode, isDraggingCanvas, dragStart, viewPosition, zoomLevel]);
 
-  // Modify the top bar to include login/logout button
   const renderTopBar = () => (
     <div className="top-bar">
       <h1>LifeMap</h1>
       <div className="button-group">
-        {/* Existing buttons */}
         <button 
           className={`btn ${connectMode ? 'btn-active' : ''}`}
           onClick={() => setConnectMode(!connectMode)}
@@ -543,7 +571,6 @@ const LifeMap = () => {
           </button>
         )}
 
-        {/* Login/Logout Button */}
         {user ? (
           <div className="user-profile">
             <img 
@@ -573,7 +600,6 @@ const LifeMap = () => {
 
   return (
     <div className="mind-map-container">
-      {/* Animated Stars Background */}
       <div className="stars-background" ref={starsRef}>
         {stars.map((star) => (
           <div 
@@ -591,10 +617,8 @@ const LifeMap = () => {
         ))}
       </div>
       
-      {/* Replace existing top bar with new renderTopBar method */}
       {renderTopBar()}
       
-      {/* Main Canvas */}
       <div 
         className="canvas"
         onWheel={handleZoom}
@@ -646,7 +670,6 @@ const LifeMap = () => {
           className="mind-map-svg"
         >
           <g transform={`scale(${zoomLevel}) translate(${-viewPosition.x}, ${-viewPosition.y})`}>
-            {/* Connections */}
             {connections.map((connection, index) => {
               const fromNode = nodes.find(node => node.id === connection.from);
               const toNode = nodes.find(node => node.id === connection.to);
@@ -665,7 +688,6 @@ const LifeMap = () => {
               );
             })}
             
-            {/* Nodes */}
             {nodes.map((node) => {
               const nodeSize = node.type === 'main' ? 80 : node.type === 'category' ? 60 : 50;
               return (
@@ -736,7 +758,6 @@ const LifeMap = () => {
           </g>
         </svg>
         
-        {/* Mobile zoom controls */}
         {isMobileDevice && (
           <div className="mobile-controls">
             <button onClick={zoomIn} className="zoom-btn">+</button>
@@ -746,7 +767,6 @@ const LifeMap = () => {
         )}
       </div>
       
-      {/* Action Panel - Fixed for Mobile */}
       {selectedNode && (
         <div className="action-panel mobile-friendly-panel">
           <h3>
@@ -775,14 +795,12 @@ const LifeMap = () => {
         </div>
       )}
       
-      {/* Tooltip */}
       {showTooltip && (
         <div className="tooltip">
           {tooltipText}
         </div>
       )}
       
-      {/* Help Panel */}
       <div className="help-panel mobile-friendly-panel">
         {isMobileDevice ? (
           <>

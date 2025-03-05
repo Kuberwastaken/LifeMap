@@ -767,7 +767,7 @@ body {
 }
 
 .btn-logout {
-  background: rgba(244, 67, 54, 0.9); /* Slightly transparent red to match theme */
+  background: rgba(157, 41, 56, 0.9); /* Slightly transparent red to match theme */
   color: white;
   border: none; /* Remove border to match other buttons */
   border-radius: 8px; /* Match button curvature */
