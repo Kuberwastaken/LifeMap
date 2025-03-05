@@ -405,10 +405,14 @@ const LifeMap = () => {
     <div className="top-bar">
       <h1>LifeMap</h1>
       <div className="button-group">
-        <button className={`btn ${connectMode ? 'btn-active' : ''}`} onClick={() => setConnectMode(!connectMode)}>
-          {connectMode ? 'Cancel Connect' : 'Connect Mode'}
-        </button>
-        <button className="btn" onClick={saveLifeMap}>Save</button>
+        {!showNameInput && (
+          <>
+            <button className={`btn ${connectMode ? 'btn-active' : ''}`} onClick={() => setConnectMode(!connectMode)}>
+              {connectMode ? 'Cancel Connect' : 'Connect Mode'}
+            </button>
+            <button className="btn" onClick={saveLifeMap}>Save</button>
+          </>
+        )}
         <label className="btn btn-file">
           Load
           <input type="file" accept=".json" onChange={loadLifeMap} />
@@ -483,7 +487,7 @@ const LifeMap = () => {
                     </foreignObject>
                   ) : (
                     <text textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={node.type === 'main' ? 16 : 12} fontWeight={node.type === 'main' ? 'bold' : 'normal'}>
-                      {node.label.length > 12 ? node.label.substring(0, 10) + '...' : node.label}
+                      {node.label}
                     </text>
                   )}
                 </g>
