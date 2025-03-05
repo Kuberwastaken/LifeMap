@@ -4,7 +4,10 @@
     "private": true,
     "homepage": "https://kuberwastaken.github.io/LifeMap",
     "dependencies": {
+        "@firebase/auth": "^1.9.1",
+        "@firebase/firestore": "^4.7.9",
         "d3": "^7.9.0",
+        "firebase": "^11.4.0",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-scripts": "5.0.1"
