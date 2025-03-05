@@ -43,28 +43,24 @@ const LifeMap = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const generateStars = () => {
     const starCount = 200;
     const stars = [];
-    
     for (let i = 0; i < starCount; i++) {
       const size = Math.random() * 2 + 1;
       stars.push({
         id: `star-${i}`,
         x: Math.random() * 100,
         y: Math.random() * 100,
-        size: size,
+        size,
         opacity: Math.random() * 0.7 + 0.3,
         animationDuration: Math.random() * 15 + 10,
         animationDelay: Math.random() * 10
       });
     }
-    
     return stars;
   };
   
@@ -77,11 +73,9 @@ const LifeMap = () => {
       setShowNameInput(true);
 
       if (user) {
-        console.log('Loading data for UID:', user.uid);
         try {
           const docRef = doc(db, 'lifemaps', user.uid);
           const docSnap = await getDoc(docRef);
-          console.log('Firestore getDoc response:', docSnap.exists() ? docSnap.data() : 'No document');
           
           if (docSnap.exists()) {
             const data = docSnap.data();
@@ -90,18 +84,13 @@ const LifeMap = () => {
               setConnections(data.connections);
               setShowNameInput(false);
               showNotification('Loaded your LifeMap from cloud!');
-            } else {
-              console.log('Document exists but has invalid data:', data);
-              setShowNameInput(true);
             }
           } else {
-            console.log('No Firestore document found');
             setShowNameInput(true);
           }
         } catch (error) {
           console.error('Firestore load error:', error.message, error.code);
           showNotification('Load failed: ' + error.message);
-          // Fallback to localStorage
           const savedData = localStorage.getItem('lifeMapData');
           if (savedData) {
             try {
@@ -118,7 +107,6 @@ const LifeMap = () => {
           }
         }
       } else {
-        console.log('No user, using localStorage');
         const savedData = localStorage.getItem('lifeMapData');
         if (savedData) {
           try {
@@ -142,33 +130,14 @@ const LifeMap = () => {
     const centerX = svgRef.current ? svgRef.current.clientWidth / 2 : window.innerWidth / 2;
     const centerY = svgRef.current ? svgRef.current.clientHeight / 2 : window.innerHeight / 2;
     
-    const mainNode = {
-      id: 'main',
-      label: name,
-      x: centerX,
-      y: centerY,
-      type: 'main',
-      color: '#FFFFFF'
-    };
-    
+    const mainNode = { id: 'main', label: name, x: centerX, y: centerY, type: 'main', color: '#FFFFFF' };
     const categoryNodes = categories.map((category, index) => {
       const angle = (index * 2 * Math.PI) / categories.length;
       const distance = 150;
-      return {
-        id: category.id,
-        label: category.label,
-        x: centerX + distance * Math.cos(angle),
-        y: centerY + distance * Math.sin(angle),
-        type: 'category',
-        color: category.color
-      };
+      return { id: category.id, label: category.label, x: centerX + distance * Math.cos(angle), y: centerY + distance * Math.sin(angle), type: 'category', color: category.color };
     });
     
-    const categoryConnections = categories.map(category => ({
-      from: 'main',
-      to: category.id,
-      color: category.color
-    }));
+    const categoryConnections = categories.map(category => ({ from: 'main', to: category.id, color: category.color }));
     
     setNodes([mainNode, ...categoryNodes]);
     setConnections(categoryConnections);
@@ -185,21 +154,8 @@ const LifeMap = () => {
     
     const angle = Math.random() * 2 * Math.PI;
     const distance = 100;
-    const newNode = {
-      id: newId,
-      label: 'New Node',
-      x: parent.x + distance * Math.cos(angle),
-      y: parent.y + distance * Math.sin(angle),
-      type: 'subnode',
-      color: nodeColor,
-      editable: true
-    };
-    
-    const newConnection = {
-      from: parentId,
-      to: newId,
-      color: nodeColor
-    };
+    const newNode = { id: newId, label: 'New Node', x: parent.x + distance * Math.cos(angle), y: parent.y + distance * Math.sin(angle), type: 'subnode', color: nodeColor, editable: true };
+    const newConnection = { from: parentId, to: newId, color: nodeColor };
     
     setNodes([...nodes, newNode]);
     setConnections([...connections, newConnection]);
@@ -210,19 +166,9 @@ const LifeMap = () => {
     if (selectedNode && selectedNode !== nodeId) {
       const startNode = nodes.find(n => n.id === selectedNode);
       const endNode = nodes.find(n => n.id === nodeId);
-      
       if (startNode && endNode) {
-        const newConnection = {
-          from: selectedNode,
-          to: nodeId,
-          color: startNode.color
-        };
-        
-        const connectionExists = connections.some(
-          conn => (conn.from === selectedNode && conn.to === nodeId) || 
-                 (conn.from === nodeId && conn.to === selectedNode)
-        );
-        
+        const newConnection = { from: selectedNode, to: nodeId, color: startNode.color };
+        const connectionExists = connections.some(conn => (conn.from === selectedNode && conn.to === nodeId) || (conn.from === nodeId && conn.to === selectedNode));
         if (!connectionExists) {
           setConnections([...connections, newConnection]);
           showNotification('Connected!');
@@ -241,7 +187,6 @@ const LifeMap = () => {
 
   const handleNodeClick = (nodeId, e) => {
     if (e) e.stopPropagation();
-    
     if (connectMode) {
       if (selectedNode && selectedNode !== nodeId) {
         startConnection(nodeId);
@@ -255,33 +200,19 @@ const LifeMap = () => {
 
   const handleNodeDoubleClick = (node, e) => {
     if (e) e.stopPropagation();
-    const updatedNodes = nodes.map(n => {
-      if (n.id === node.id) {
-        return { ...n, editable: true };
-      }
-      return n;
-    });
+    const updatedNodes = nodes.map(n => n.id === node.id ? { ...n, editable: true } : n);
     setNodes(updatedNodes);
   };
 
   const updateNodeLabel = (nodeId, newLabel) => {
-    const updatedNodes = nodes.map(node => {
-      if (node.id === nodeId) {
-        return { ...node, label: newLabel, editable: false };
-      }
-      return node;
-    });
+    const updatedNodes = nodes.map(node => node.id === nodeId ? { ...node, label: newLabel, editable: false } : node);
     setNodes(updatedNodes);
   };
 
   const deleteNode = () => {
     if (!selectedNode) return;
-
     const updatedNodes = nodes.filter(node => node.id !== selectedNode);
-    const updatedConnections = connections.filter(
-      conn => conn.from !== selectedNode && conn.to !== selectedNode
-    );
-
+    const updatedConnections = connections.filter(conn => conn.from !== selectedNode && conn.to !== selectedNode);
     setNodes(updatedNodes);
     setConnections(updatedConnections);
     setSelectedNode(null);
@@ -289,9 +220,7 @@ const LifeMap = () => {
   };
 
   const getClientCoordinates = (e) => {
-    if (e.touches) {
-      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-    }
+    if (e.touches) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
     return { clientX: e.clientX, clientY: e.clientY };
   };
 
@@ -300,13 +229,9 @@ const LifeMap = () => {
     const { clientX, clientY } = getClientCoordinates(e);
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
-    
     const svgRect = svgRef.current.getBoundingClientRect();
     setDraggedNode(nodeId);
-    setDragOffset({
-      x: node.x - (clientX - svgRect.left) / zoomLevel + viewPosition.x,
-      y: node.y - (clientY - svgRect.top) / zoomLevel + viewPosition.y
-    });
+    setDragOffset({ x: node.x - (clientX - svgRect.left) / zoomLevel + viewPosition.x, y: node.y - (clientY - svgRect.top) / zoomLevel + viewPosition.y });
   };
 
   const handleDragMove = (e) => {
@@ -314,21 +239,12 @@ const LifeMap = () => {
     const { clientX, clientY } = getClientCoordinates(e);
     const svgRect = svgRef.current.getBoundingClientRect();
     const x = (clientX - svgRect.left) / zoomLevel - viewPosition.x + dragOffset.x;
-    const y = (clientY - svgRect.top) / zoomLevel - viewPosition.y + dragOffset.y;
-    
-    const updatedNodes = nodes.map(node => {
-      if (node.id === draggedNode) {
-        return { ...node, x, y };
-      }
-      return node;
-    });
-    
+    const y = (clientY - svgRef.current.getBoundingClientRect().top) / zoomLevel - viewPosition.y + dragOffset.y;
+    const updatedNodes = nodes.map(node => node.id === draggedNode ? { ...node, x, y } : node);
     setNodes(updatedNodes);
   };
 
-  const handleDragEnd = () => {
-    setDraggedNode(null);
-  };
+  const handleDragEnd = () => setDraggedNode(null);
 
   const handleCanvasDragStart = (e) => {
     if (draggedNode) return;
@@ -342,18 +258,11 @@ const LifeMap = () => {
     const { clientX, clientY } = getClientCoordinates(e);
     const dx = (clientX - dragStart.x) / zoomLevel;
     const dy = (clientY - dragStart.y) / zoomLevel;
-    
-    setViewPosition({
-      x: viewPosition.x - dx,
-      y: viewPosition.y - dy
-    });
-    
+    setViewPosition({ x: viewPosition.x - dx, y: viewPosition.y - dy });
     setDragStart({ x: clientX, y: clientY });
   };
 
-  const handleCanvasDragEnd = () => {
-    setIsDraggingCanvas(false);
-  };
+  const handleCanvasDragEnd = () => setIsDraggingCanvas(false);
 
   const handleZoom = (e) => {
     e.preventDefault();
@@ -364,60 +273,40 @@ const LifeMap = () => {
 
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
+      const distance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       setPinchStart(distance);
       e.preventDefault();
-    } else if (e.touches.length === 1) {
-      handleCanvasDragStart(e);
-    }
+    } else if (e.touches.length === 1) handleCanvasDragStart(e);
   };
 
   const handleTouchMove = (e) => {
     if (e.touches.length === 2) {
       e.preventDefault();
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      
+      const distance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       if (pinchStart > 0) {
         const delta = (distance - pinchStart) * 0.01;
         const newZoom = Math.max(0.5, Math.min(2, zoomLevel + delta));
         setZoomLevel(newZoom);
         setPinchStart(distance);
       }
-    } else if (e.touches.length === 1 && isDraggingCanvas) {
-      handleCanvasDragMove(e);
-    }
+    } else if (e.touches.length === 1 && isDraggingCanvas) handleCanvasDragMove(e);
   };
 
   const handleTouchEnd = (e) => {
     setPinchStart(0);
-    if (isDraggingCanvas) {
-      handleCanvasDragEnd();
-    }
+    if (isDraggingCanvas) handleCanvasDragEnd();
   };
 
   const saveLifeMap = async () => {
-    console.log('Save button clicked');
     try {
       const data = { nodes, connections };
-      console.log('Saving data:', data);
-      console.log('User:', user ? `UID: ${user.uid}` : 'Not logged in');
-
       localStorage.setItem('lifeMapData', JSON.stringify(data));
       
       if (user) {
-        console.log('Attempting Firestore save for UID:', user.uid);
         const docRef = doc(db, 'lifemaps', user.uid);
         await setDoc(docRef, data);
-        console.log('Firestore save successful');
         showNotification('Mind map saved to cloud!');
       } else {
-        console.log('No user, saved to localStorage only');
         showNotification('Mind map saved locally!');
       }
       
@@ -439,13 +328,10 @@ const LifeMap = () => {
   const loadLifeMap = async (e) => {
     try {
       if (user) {
-        console.log('Manual load from Firestore for UID:', user.uid);
         const docRef = doc(db, 'lifemaps', user.uid);
         const docSnap = await getDoc(docRef);
-        
         if (docSnap.exists()) {
           const data = docSnap.data();
-          console.log('Manual load data:', data);
           setNodes(data.nodes);
           setConnections(data.connections);
           setShowNameInput(false);
@@ -456,7 +342,6 @@ const LifeMap = () => {
       } else {
         const file = e.target.files[0];
         if (!file) return;
-        
         const reader = new FileReader();
         reader.onload = (event) => {
           try {
@@ -491,44 +376,25 @@ const LifeMap = () => {
     }
   };
 
-  const zoomIn = () => {
-    const newZoom = Math.min(2, zoomLevel + 0.1);
-    setZoomLevel(newZoom);
-  };
-
-  const zoomOut = () => {
-    const newZoom = Math.max(0.5, zoomLevel - 0.1);
-    setZoomLevel(newZoom);
-  };
-
-  const resetZoom = () => {
-    setZoomLevel(1);
-    setViewPosition({ x: 0, y: 0 });
-  };
+  const zoomIn = () => setZoomLevel(Math.min(2, zoomLevel + 0.1));
+  const zoomOut = () => setZoomLevel(Math.max(0.5, zoomLevel - 0.1));
+  const resetZoom = () => { setZoomLevel(1); setViewPosition({ x: 0, y: 0 }); };
 
   useEffect(() => {
-    if (nodes.length > 0) {
-      localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
-    }
+    if (nodes.length > 0) localStorage.setItem('lifeMapData', JSON.stringify({ nodes, connections }));
   }, [nodes, connections]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (draggedNode) {
-        handleDragMove(e);
-      } else if (isDraggingCanvas) {
-        handleCanvasDragMove(e);
-      }
+      if (draggedNode) handleDragMove(e);
+      else if (isDraggingCanvas) handleCanvasDragMove(e);
     };
-    
     const handleMouseUp = () => {
       if (draggedNode) handleDragEnd();
       if (isDraggingCanvas) handleCanvasDragEnd();
     };
-
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-    
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -539,59 +405,23 @@ const LifeMap = () => {
     <div className="top-bar">
       <h1>LifeMap</h1>
       <div className="button-group">
-        <button 
-          className={`btn ${connectMode ? 'btn-active' : ''}`}
-          onClick={() => setConnectMode(!connectMode)}
-        >
+        <button className={`btn ${connectMode ? 'btn-active' : ''}`} onClick={() => setConnectMode(!connectMode)}>
           {connectMode ? 'Cancel Connect' : 'Connect Mode'}
         </button>
-        
-        <button 
-          className="btn"
-          onClick={saveLifeMap}
-        >
-          Save
-        </button>
-        
+        <button className="btn" onClick={saveLifeMap}>Save</button>
         <label className="btn btn-file">
           Load
-          <input 
-            type="file" 
-            accept=".json" 
-            onChange={loadLifeMap}
-          />
+          <input type="file" accept=".json" onChange={loadLifeMap} />
         </label>
-
-        {!showNameInput && (
-          <button 
-            className="btn btn-danger"
-            onClick={clearLifeMap}
-          >
-            Reset
-          </button>
-        )}
-
+        {!showNameInput && <button className="btn btn-danger" onClick={clearLifeMap}>Reset</button>}
         {user ? (
           <div className="user-profile">
-            <img 
-              src={user.photoURL} 
-              alt="Profile" 
-              className="profile-pic"
-            />
-            <button 
-              className="btn btn-logout"
-              onClick={logout}
-            >
-              Logout
-            </button>
+            <img src={user.photoURL || 'https://via.placeholder.com/40'} alt="Profile" className="profile-pic" onError={(e) => e.target.src = 'https://via.placeholder.com/40'} />
+            <button className="btn btn-logout" onClick={logout}>Logout</button>
           </div>
         ) : (
-          <button 
-            className="btn btn-google-login"
-            onClick={login}
-          >
-            <span className="google-icon">G</span>
-            Sign in with Google
+          <button className="btn btn-google-login" onClick={login}>
+            <span className="google-icon">G</span> Sign in with Google
           </button>
         )}
       </div>
@@ -605,28 +435,12 @@ const LifeMap = () => {
           <div 
             key={star.id}
             className="star"
-            style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animation: `twinkle ${star.animationDuration}s infinite ${star.animationDelay}s`
-            }}
+            style={{ left: `${star.x}%`, top: `${star.y}%`, width: `${star.size}px`, height: `${star.size}px`, opacity: star.opacity, animation: `twinkle ${star.animationDuration}s infinite ${star.animationDelay}s` }}
           ></div>
         ))}
       </div>
-      
       {renderTopBar()}
-      
-      <div 
-        className="canvas"
-        onWheel={handleZoom}
-        onMouseDown={handleCanvasDragStart}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+      <div className="canvas" onWheel={handleZoom} onMouseDown={handleCanvasDragStart} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         {showNameInput && (
           <div className="name-input-overlay">
             <div className="name-input-box">
@@ -635,25 +449,10 @@ const LifeMap = () => {
                 <h2>Map Out your Life Digitally</h2>
               </div>
               <p className="cosmic-subtitle">An Open-Source way to keep track of Life's Questions</p>
-              
               <div className="input-field">
-                <input
-                  type="text"
-                  placeholder="Enter your name, traveler"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      addMainNode(nameInput || 'Me');
-                    }
-                  }}
-                />
+                <input type="text" placeholder="Enter your name, traveler" value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addMainNode(nameInput || 'Me'); }} />
               </div>
-              
-              <button
-                className="cosmic-button"
-                onClick={() => addMainNode(nameInput || 'Me')}
-              >
+              <button className="cosmic-button" onClick={() => addMainNode(nameInput || 'Me')}>
                 <span className="button-text">Launch Concept Map</span>
                 <div className="button-stars">
                   <div className="star-1"></div>
@@ -664,91 +463,26 @@ const LifeMap = () => {
             </div>
           </div>
         )}
-        
-        <svg 
-          ref={svgRef}
-          className="mind-map-svg"
-        >
+        <svg ref={svgRef} className="mind-map-svg">
           <g transform={`scale(${zoomLevel}) translate(${-viewPosition.x}, ${-viewPosition.y})`}>
             {connections.map((connection, index) => {
               const fromNode = nodes.find(node => node.id === connection.from);
               const toNode = nodes.find(node => node.id === connection.to);
               if (!fromNode || !toNode) return null;
-              return (
-                <line
-                  key={`connection-${index}`}
-                  x1={fromNode.x}
-                  y1={fromNode.y}
-                  x2={toNode.x}
-                  y2={toNode.y}
-                  stroke={connection.color}
-                  strokeWidth={2}
-                  strokeOpacity={0.7}
-                />
-              );
+              return <line key={`connection-${index}`} x1={fromNode.x} y1={fromNode.y} x2={toNode.x} y2={toNode.y} stroke={connection.color} strokeWidth={2} strokeOpacity={0.7} />;
             })}
-            
             {nodes.map((node) => {
               const nodeSize = node.type === 'main' ? 80 : node.type === 'category' ? 60 : 50;
               return (
-                <g 
-                  key={node.id} 
-                  transform={`translate(${node.x}, ${node.y})`}
-                  className="node"
-                  onClick={(e) => handleNodeClick(node.id, e)}
-                  onDoubleClick={(e) => handleNodeDoubleClick(node, e)}
-                  onMouseDown={(e) => handleDragStart(e, node.id)}
-                  onTouchStart={(e) => handleDragStart(e, node.id)}
-                >
-                  {selectedNode === node.id && (
-                    <circle
-                      r={nodeSize / 2 + 10}
-                      fill="transparent"
-                      stroke={node.color}
-                      strokeWidth={1}
-                      strokeDasharray="3,3"
-                      className="connection-hook"
-                    />
-                  )}
-                  
-                  <circle
-                    r={nodeSize / 2}
-                    fill="rgba(0,0,0,0.5)"
-                    stroke={node.color}
-                    strokeWidth={selectedNode === node.id ? 3 : 1}
-                    className="node-circle"
-                  />
-                  
+                <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className="node" onClick={(e) => handleNodeClick(node.id, e)} onDoubleClick={(e) => handleNodeDoubleClick(node, e)} onMouseDown={(e) => handleDragStart(e, node.id)} onTouchStart={(e) => handleDragStart(e, node.id)}>
+                  {selectedNode === node.id && <circle r={nodeSize / 2 + 10} fill="transparent" stroke={node.color} strokeWidth={1} strokeDasharray="3,3" className="connection-hook" />}
+                  <circle r={nodeSize / 2} fill="rgba(0,0,0,0.5)" stroke={node.color} strokeWidth={selectedNode === node.id ? 3 : 1} className="node-circle" />
                   {node.editable ? (
-                    <foreignObject
-                      x={-nodeSize / 2 - 20}
-                      y={-nodeSize / 2}
-                      width={nodeSize + 40}
-                      height={nodeSize}
-                      className="edit-container"
-                    >
-                      <input
-                        type="text"
-                        defaultValue={node.label}
-                        className="node-edit-input"
-                        autoFocus
-                        onBlur={(e) => updateNodeLabel(node.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            updateNodeLabel(node.id, e.target.value);
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                    <foreignObject x={-nodeSize / 2 - 20} y={-nodeSize / 2} width={nodeSize + 40} height={nodeSize} className="edit-container">
+                      <input type="text" defaultValue={node.label} className="node-edit-input" autoFocus onBlur={(e) => updateNodeLabel(node.id, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') updateNodeLabel(node.id, e.target.value); }} onClick={(e) => e.stopPropagation()} />
                     </foreignObject>
                   ) : (
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="#fff"
-                      fontSize={node.type === 'main' ? 16 : 12}
-                      fontWeight={node.type === 'main' ? 'bold' : 'normal'}
-                    >
+                    <text textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={node.type === 'main' ? 16 : 12} fontWeight={node.type === 'main' ? 'bold' : 'normal'}>
                       {node.label.length > 12 ? node.label.substring(0, 10) + '...' : node.label}
                     </text>
                   )}
@@ -757,7 +491,6 @@ const LifeMap = () => {
             })}
           </g>
         </svg>
-        
         {isMobileDevice && (
           <div className="mobile-controls">
             <button onClick={zoomIn} className="zoom-btn">+</button>
@@ -766,41 +499,17 @@ const LifeMap = () => {
           </div>
         )}
       </div>
-      
       {selectedNode && (
         <div className="action-panel mobile-friendly-panel">
-          <h3>
-            {nodes.find(n => n.id === selectedNode)?.label || 'Selected Node'}
-          </h3>
+          <h3>{nodes.find(n => n.id === selectedNode)?.label || 'Selected Node'}</h3>
           <div className="button-group">
-            <button
-              className="btn"
-              onClick={() => addChildNode(selectedNode)}
-            >
-              Add Child
-            </button>
-            <button
-              className="btn"
-              onClick={() => handleNodeDoubleClick(nodes.find(n => n.id === selectedNode))}
-            >
-              Edit
-            </button>
-            <button
-              className="btn btn-danger"
-              onClick={deleteNode}
-            >
-              Delete
-            </button>
+            <button className="btn" onClick={() => addChildNode(selectedNode)}>Add Child</button>
+            <button className="btn" onClick={() => handleNodeDoubleClick(nodes.find(n => n.id === selectedNode))}>Edit</button>
+            <button className="btn btn-danger" onClick={deleteNode}>Delete</button>
           </div>
         </div>
       )}
-      
-      {showTooltip && (
-        <div className="tooltip">
-          {tooltipText}
-        </div>
-      )}
-      
+      {showTooltip && <div className="tooltip">{tooltipText}</div>}
       <div className="help-panel mobile-friendly-panel">
         {isMobileDevice ? (
           <>
@@ -818,10 +527,7 @@ const LifeMap = () => {
           </>
         )}
       </div>
-
-      <footer className="footer">
-        Made with <span style={{ color: 'red' }}>❤</span> by Kuber Mehta
-      </footer>
+      <footer className="footer">Made with <span style={{ color: 'red' }}>❤</span> by Kuber Mehta</footer>
     </div>
   );
 };
