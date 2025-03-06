@@ -70,6 +70,7 @@ LifeMap is a web application that allows you to create and visualize your person
 ## How Saving Works
 
 LifeMap allows you to save your mind map to local storage and download it as a JSON file. You can also load a previously saved mind map from a JSON file.
+Signing into Google saves it on the cloud, so if you sign in on any other device, it fetches your saved MindMap no matter where you saved it.
 
 ## Open Source Contributions
 
