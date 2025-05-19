@@ -20,7 +20,7 @@ LifeMap is a web application that allows you to create and visualize your person
 
 
 <div align="center">
-    <a href="https://kuberwastaken.github.io/LifeMap" target="_blank">
+    <a href="https://lifemap.kuber.studio/" target="_blank">
         <img src="https://img.shields.io/badge/Make%20Your%20Own%20LifeMap-black?style=for-the-badge&logoColor=white" alt="Make Your Own LifeMap" width="300">
     </a>
 </div>

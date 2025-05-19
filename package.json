@@ -2,7 +2,7 @@
     "name": "LifeMap",
     "version": "0.1.0",
     "private": true,
-    "homepage": "https://kuberwastaken.github.io/LifeMap",
+    "homepage": "https://lifemap.kuber.studio/",
     "dependencies": {
         "@firebase/auth": "^1.9.1",
         "@firebase/firestore": "^4.7.9",
